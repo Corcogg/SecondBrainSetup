@@ -1,0 +1,17 @@
+{
+  "owner_name": "{{OWNER_NAME}}",
+  "app_dir": "~/SecondBrain/app",
+  "vault_dir": "~/SecondBrain/vault",
+  "python": "~/SecondBrain/app/.venv/bin/python",
+  "launchd_label": "com.secondbrain.watcher",
+  "domains": ["general", "projects", "system"],
+  "domain_dirs": {"general": "facts", "projects": "projects", "system": "system"},
+  "cwd_domain_map": [],
+  "models": {
+    "structured": "claude-sonnet-5",
+    "classify": "claude-haiku-4-5-20251001",
+    "embed": "voyage-3",
+    "embed_dim": 1024
+  },
+  "notifications": true
+}
