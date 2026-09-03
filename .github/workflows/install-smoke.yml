@@ -50,8 +50,14 @@ jobs:
       - name: setup.ps1
         run: |
           & (Join-Path $env:APP 'setup.ps1') -NonInteractive -SkipMcp -SkipHooks -SkipIndex
-          "setup exit: $LASTEXITCODE"
-          # Two expected reds (MCP, hooks) make setup exit 1; the real gate is the assertion below.
+          $code = $LASTEXITCODE
+          "setup exit: $code"
+          # Two expected reds (MCP, hooks) make setup exit 1; the real gate is the doctor assertion below.
+          if ($code -ne 0 -and $code -ne 1) { throw "setup.ps1 exited $code" }
+          $global:LASTEXITCODE = 0
+
+      - name: ACL of .env (diagnostic; principals only, never contents)
+        run: icacls (Join-Path $env:APP '.env')
 
       - name: Task registered
         run: |

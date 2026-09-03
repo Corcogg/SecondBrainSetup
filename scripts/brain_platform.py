@@ -133,13 +133,21 @@ def watcher_pids(script_path: Path) -> list[str]:
 
 # ── secrets_file_locked ──────────────────────────────────────────────────────
 
+# Principals that may appear on the .env ACL besides the owner. Both can read
+# any file on the machine regardless of ACL (Administrators can take ownership),
+# so allowing them costs nothing; OpenSSH for Windows applies the same rule to
+# private keys. Observed on windows-latest: `icacls /inheritance:r /grant:r`
+# still leaves explicit SYSTEM + Administrators ACEs on files under the profile.
+_ADMIN_PRINCIPALS = {"nt authority\\system", "builtin\\administrators"}
+
+
 def _parse_icacls(output: str, user: str) -> tuple[bool, str]:
     """Parse `icacls <path>` output (path prefix already stripped by the
     caller) into (locked, detail).
 
     Locked iff every listed principal resolves to `user` (matched either as
     the full "DOMAIN\\name" form or the bare "name" form, case-insensitively)
-    and no ACE carries the inherited flag "(I)". `detail` is permission
+    or is one of _ADMIN_PRINCIPALS, and no ACE carries the inherited flag "(I)". `detail` is permission
     info only — never file contents.
     """
     user_full = user.strip().lower()
@@ -173,7 +181,8 @@ def _parse_icacls(output: str, user: str) -> tuple[bool, str]:
     if inherited:
         return False, f"inherited ACE present: {', '.join(principals)}"
 
-    non_owner = [p for p in principals if p.lower() not in (user_full, user_name)]
+    allowed = {user_full, user_name} | _ADMIN_PRINCIPALS
+    non_owner = [p for p in principals if p.lower() not in allowed]
     if non_owner:
         return False, f"non-owner principal(s): {', '.join(non_owner)}"
 

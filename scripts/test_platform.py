@@ -38,6 +38,24 @@ class TestParseIcacls(unittest.TestCase):
         ok, detail = _parse_icacls(output, "J-PC\\j")
         self.assertTrue(ok, detail)
 
+    def test_locked_with_system_and_administrators(self):
+        # Real windows-latest output after `icacls /inheritance:r /grant:r`:
+        # SYSTEM and Administrators remain as explicit ACEs. Allowed (OpenSSH rule).
+        output = (
+            "runneradmin\\runneradmin:(R,W)\n"
+            "NT AUTHORITY\\SYSTEM:(F)\n"
+            "BUILTIN\\Administrators:(F)\n\n"
+            "Successfully processed 1 files; Failed processing 0 files.\n"
+        )
+        ok, detail = _parse_icacls(output, "runneradmin\\runneradmin")
+        self.assertTrue(ok, detail)
+
+    def test_unlocked_everyone_present(self):
+        output = "J-PC\\j:(F)\nEveryone:(R)\n\nSuccessfully processed 1 files; Failed processing 0 files.\n"
+        ok, detail = _parse_icacls(output, "J-PC\\j")
+        self.assertFalse(ok)
+        self.assertIn("Everyone", detail)
+
     def test_unlocked_builtin_users_present(self):
         output = (
             "J-PC\\j:(F)\n"

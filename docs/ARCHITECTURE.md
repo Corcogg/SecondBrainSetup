@@ -108,7 +108,7 @@ The ONLY module allowed to branch on OS. Everything else (`brain_watcher.py`, `b
 IS_WINDOWS: bool                                   # sys.platform == "win32"
 def notify(title: str, message: str) -> None       # macOS: today's osascript code moved verbatim; Windows: no-op (v1 drops toasts). Honors brain_config.NOTIFICATIONS.
 def watcher_pids(script_path: Path) -> list[str]   # macOS: pgrep -f <script_path>; Windows: match "brain_watcher.py" in process command lines (tasklist/Get-CimInstance). Empty list = not running. Never raises.
-def secrets_file_locked(path: Path) -> tuple[bool, str]   # macOS: stat mode == 0o600; Windows: icacls shows the owning user as the ONLY principal (no BUILTIN\Users, Authenticated Users, Everyone, inherited ACEs). Returns (ok, detail); detail never contains file contents.
+def secrets_file_locked(path: Path) -> tuple[bool, str]   # macOS: stat mode == 0o600; Windows: every principal icacls lists is the owning user, `NT AUTHORITY\SYSTEM`, or `BUILTIN\Administrators` (the OpenSSH-for-Windows key rule; both can read any file regardless), and no ACE is inherited. `BUILTIN\Users`, `Authenticated Users`, `Everyone` fail. Returns (ok, detail); detail never contains file contents.
 def service_loaded(label: str) -> tuple[bool, str]        # macOS: launchctl print gui/<uid>/<label> rc==0; Windows: schtasks /Query /TN <label> /FO CSV /V — ok iff task exists AND state is "Running" or "Ready". detail = state string.
 ```
 
@@ -174,3 +174,4 @@ Three jobs. `unit` (ubuntu-latest): `py_compile` of every script and hook, then 
 - `setup.ps1`/`uninstall.ps1` accept `-Help` for parity with `-h`. Not part of the contract.
 - `setup.ps1` checks only icacls' exit code (its status text is localized); `doctor.py` re-verifies the ACL by parsing principals, which are not localized.
 - CI (`.github/workflows/install-smoke.yml`): the Windows job tolerates Task Scheduler refusing to start a task in the runner's non-interactive session — it registers the task, tries `/Run`, and falls back to starting the watcher directly so doctor and the boot check still run. A real logon session is verified on J's machine, not in CI.
+- **Windows facts from the first windows-latest run (2026-09-03):** `icacls /inheritance:r /grant:r "<user>:(R,W)"` leaves explicit `NT AUTHORITY\SYSTEM` and `BUILTIN\Administrators` ACEs on files under the user profile, hence the allow-list above. uv-managed venvs use a trampoline `python.exe`/`pythonw.exe` that spawns the real interpreter, so `watcher_pids` returns two PIDs for one watcher; harmless. Task Scheduler did start the task in the runner session (`schtasks /Run` → state Running), so the CI direct-start fallback was not needed there.
