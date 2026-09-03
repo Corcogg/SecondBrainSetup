@@ -102,7 +102,7 @@ No TCC on Windows, so there is no Desktop/Documents/Downloads guard. `setup.ps1`
 
 ## Platform shim — `scripts/brain_platform.py`
 
-The ONLY module allowed to branch on OS. Everything else (`brain_watcher.py`, `doctor.py`, `install_hooks.py`, `brain_test.py`) calls these and never imports `subprocess` to reach `osascript`, `pgrep`, `launchctl`, `schtasks`, `tasklist`, or `icacls` directly.
+The ONLY module allowed to branch on OS. Everything else (`brain_watcher.py`, `brain_mcp.py`, `doctor.py`, `install_hooks.py`, `brain_test.py`) calls these and never imports `subprocess` to reach `osascript`, `pgrep`, `launchctl`, `schtasks`, `tasklist`, or `icacls` directly.
 
 ```python
 IS_WINDOWS: bool                                   # sys.platform == "win32"
@@ -134,7 +134,7 @@ macOS keeps today's shell-form string (`'<python>' '<hook>'`) unchanged. `instal
 ## Watcher supervisor on Windows — Task Scheduler
 
 - Template: `windows/watcher-task.xml.template`, placeholders `__LABEL__`, `__PYTHONW__`, `__APP__`, `__LOG__`, `__USERID__`.
-- Registered with `schtasks /Create /F /TN <label> /XML <rendered>`; rendered file written to `%TEMP%` and deleted after registration. Run as the current user, interactive logon token (`LogonType InteractiveToken`), so no password is stored.
+- Registered with `schtasks /Create /F /TN <label> /XML <rendered>`; rendered file written to `%TEMP%` as UTF-16LE (the encoding schtasks' importer expects; the checked-in template stays UTF-8 and `setup.ps1` rewrites the declaration) and deleted after registration. Values are XML-escaped and substituted literally, never via regex. Run as the current user, interactive logon token (`LogonType InteractiveToken`), so no password is stored.
 - Trigger: `LogonTrigger` for the current user. Settings: `RestartOnFailure` interval `PT1M` count `3`, `ExecutionTimeLimit PT0S`, `DisallowStartIfOnBatteries false`, `StopIfGoingOnBatteries false`, `StartWhenAvailable true`, `Hidden true`, `MultipleInstancesPolicy IgnoreNew`.
 - Action: `__PYTHONW__` with arguments `-u "__APP__\scripts\brain_watcher.py"`, working directory `__APP__`. Environment: the task XML carries NO environment block; the watcher loads `.env` itself via `brain_config` and finds its config at `<repo root>/brain_config.json` by default. (`BRAIN_CONFIG` is therefore unnecessary on Windows.)
 - Logging: `pythonw.exe` has no console, so the watcher's `RotatingFileHandler` at `<vault>\brain_watcher.log` is the only sink. This is already the case on macOS by design (see the comment at `scripts/brain_watcher.py` ~line 70).
@@ -158,10 +158,19 @@ Same ten steps and same flag semantics as `setup.sh`, PowerShell-style switches:
 - Set `$env:PYTHONUTF8 = '1'` and `[Console]::OutputEncoding = [Text.Encoding]::UTF8` at the top so doctor's ✅/❌ render.
 - `-NonInteractive` (or a non-interactive host) never prompts; a missing key in `.env` is a hard error with the runbook step named.
 
-## CI — `.github/workflows/windows-smoke.yml`
+## CI — `.github/workflows/install-smoke.yml`
 
-Two jobs. `windows-latest`: checkout to `$env:USERPROFILE\SecondBrain\app` (the installer requires that path), write the stub `.env`, run `setup.ps1 -NonInteractive -SkipMcp -SkipHooks -SkipIndex`, then `doctor.py --json` and assert every check except `MCP registered` and `hooks installed` is ok, then confirm `brain_watcher.log` contains the startup line within 15 s of `schtasks /Run` (the watcher exits early on stub keys only when it first calls an API, which never happens with no notes; if it does exit, the job asserts the log shows the config-load line at minimum — report which). `macos-latest`: `BRAIN_SERVICE_LABEL=com.secondbrain.watcher.ci ./setup.sh --non-interactive --skip-mcp --skip-hooks --skip-index` with the same stub and the same doctor assertion, so the shim cannot regress the Mac path. Both jobs run `python -m unittest discover -s scripts -p 'test_*.py'`.
+Three jobs. `unit` (ubuntu-latest): `py_compile` of every script and hook, then `python -m unittest discover -s scripts -p 'test_*.py'` — the pure-logic parsers already simulate Windows path semantics, so this runs once, not per OS. `windows` (windows-latest): copy the checkout to `%USERPROFILE%\SecondBrain\app` (the installer requires that path), write a stub `.env`, run `setup.ps1 -NonInteractive -SkipMcp -SkipHooks -SkipIndex`, assert the task is registered, wait for the watcher's startup line in `brain_watcher.log` (falling back to starting the watcher directly if Task Scheduler will not start it in the runner's non-interactive session, with a workflow warning), run `doctor.py --json` through `scripts/ci_assert_doctor.py` (every check must be ok except `MCP registered` and `hooks installed`, which need Claude Code), then `uninstall.ps1 -Purge` and assert the task is gone. `macos` (macos-latest): the same sequence with `BRAIN_SERVICE_LABEL=com.secondbrain.watcher.ci ./setup.sh --non-interactive --skip-mcp --skip-hooks --skip-index`, so the shim cannot regress the Mac path. Stub keys are `ci-stub`; no provider is ever called.
 
 ## Runbook — `INSTALL-windows.md` and `CLAUDE.md`
 
 `INSTALL-windows.md` mirrors `INSTALL.md` section for section (preconditions, Steps 1–8, failure branches, updating). `CLAUDE.md` gains, as its first bullet, an OS check (`uname -s` in Bash / `$env:OS` in PowerShell) that selects the runbook, and Windows twins of the "dialog rule" (Defender SmartScreen on the uv download, the schtasks UAC prompt if any, Notepad) and the keys rule (notepad instead of TextEdit). Windows preconditions add: Claude Desktop installed from claude.com/download, the CLI installed with `irm https://claude.ai/install.ps1 | iex`, Git for Windows.
+
+## Implementation notes (2026-09-03, landed)
+
+- `brain_test.py`'s watcher check collapsed from two macOS-only lines (`launchd agent loaded`, `last exit code zero`, parsed from `launchctl list`) into one `watcher service loaded` check via `brain_platform.service_loaded`. The exit-code sub-signal is gone; the log file carries it.
+- `install_hooks.py` dedups per event by "an entry for this app's hooks dir already exists" (form-agnostic) rather than by exact command string. Consequence: if `python` in config changes, re-running does not add a second entry; run `--uninstall` then install to refresh.
+- `brain_mcp.brain_status` routes its watcher check through `brain_platform.watcher_pids`.
+- `setup.ps1`/`uninstall.ps1` accept `-Help` for parity with `-h`. Not part of the contract.
+- `setup.ps1` checks only icacls' exit code (its status text is localized); `doctor.py` re-verifies the ACL by parsing principals, which are not localized.
+- CI (`.github/workflows/install-smoke.yml`): the Windows job tolerates Task Scheduler refusing to start a task in the runner's non-interactive session — it registers the task, tries `/Run`, and falls back to starting the watcher directly so doctor and the boot check still run. A real logon session is verified on J's machine, not in CI.

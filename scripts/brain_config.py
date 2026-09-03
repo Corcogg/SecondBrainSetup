@@ -3,6 +3,12 @@
 brain_config.py — single source of truth for every path, domain, model id, and
 owner name used by the second-brain scripts and hooks.
 
+`service_label` names the OS-level watcher supervisor: a launchd label on
+macOS, a Scheduled Task name on Windows (schtasks accepts dotted names, so
+the same default works on both). The key was renamed from `launchd_label`;
+old configs are still read via that fallback. `SERVICE_LABEL` is the
+canonical export; `LAUNCHD_LABEL` is kept as an alias for one release.
+
 Resolution order for the config file:
   1. $BRAIN_CONFIG env var, if set
   2. <repo root>/brain_config.json   (repo root = parent of this scripts/ dir)
@@ -107,7 +113,10 @@ try:
     APP_DIR = _expand(_raw["app_dir"])
     VAULT_DIR = _expand(_raw["vault_dir"])
     PYTHON = str(_expand(_raw["python"]))
-    LAUNCHD_LABEL = _raw["launchd_label"]
+    SERVICE_LABEL = _raw.get("service_label", _raw.get("launchd_label"))
+    if SERVICE_LABEL is None:
+        raise KeyError("service_label")
+    LAUNCHD_LABEL = SERVICE_LABEL  # alias, kept for one release
     DOMAINS = list(_raw["domains"])
     DOMAIN_DIRS = dict(_raw["domain_dirs"])
     CWD_DOMAIN_MAP = list(_raw.get("cwd_domain_map", []))

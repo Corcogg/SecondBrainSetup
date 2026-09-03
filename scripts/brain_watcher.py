@@ -50,6 +50,7 @@ from watchdog.events import FileSystemEventHandler
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brain_config
+import brain_platform
 from brain_vector import (
     EMBED_DIM, EMBED_MODEL, embed_note, get_collection, get_collection_dim,
     get_link_candidates,
@@ -260,25 +261,14 @@ def _call_structured(client: anthropic.Anthropic, system: str, user_content: str
     return None
 
 def notify(title: str, message: str):
-    """macOS notification via osascript — argv-passed to avoid code injection.
-
-    No-op if notifications are disabled in config.
+    """Desktop notification — delegates to brain_platform (macOS: osascript;
+    Windows: no-op). Kept as a module-level function because brain_test.py
+    imports `notify` from this module.
     """
-    if not brain_config.NOTIFICATIONS:
-        return
     try:
-        # Script reads message/title from argv, so no string interpolation into AppleScript.
-        script = (
-            "on run argv\n"
-            "  display notification (item 1 of argv) with title (item 2 of argv)\n"
-            "end run\n"
-        )
-        subprocess.run(
-            ["osascript", "-", message, title],
-            input=script, text=True, check=False, capture_output=True
-        )
+        brain_platform.notify(title, message)
     except Exception as e:
-        log.warning("osascript notify failed (%s): %s", type(e).__name__, e)
+        log.warning("notify failed (%s): %s", type(e).__name__, e)
 
 def already_has_frontmatter(content: str) -> bool:
     return content.strip().startswith("---")

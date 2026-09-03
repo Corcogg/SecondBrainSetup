@@ -21,13 +21,14 @@ import argparse
 import json
 import os
 import shutil
-import stat
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import brain_platform  # noqa: E402
+from install_hooks import hook_entry_belongs  # noqa: E402
 
 
 def check(name: str, ok: bool, detail: str = "") -> dict:
@@ -87,41 +88,23 @@ def check_vault_dirs(config) -> list[dict]:
     return results
 
 
-def check_env_mode(config) -> dict:
+def check_secrets_locked(config) -> dict:
     env_path = config.APP_DIR / ".env"
-    if not env_path.exists():
-        return check(".env mode is 600", False, f"{env_path} does not exist")
-    mode = stat.S_IMODE(env_path.stat().st_mode)
-    ok = mode == 0o600
-    return check(".env mode is 600", ok, f"mode={oct(mode)}")
+    ok, detail = brain_platform.secrets_file_locked(env_path)
+    return check(".env restricted to owner", ok, detail)
 
 
 def check_watcher_process(config) -> dict:
     watcher_path = config.APP_DIR / "scripts" / "brain_watcher.py"
-    try:
-        out = subprocess.run(
-            ["pgrep", "-f", str(watcher_path)],
-            capture_output=True, text=True, timeout=3,
-        )
-        pids = [p for p in out.stdout.split() if p.strip()]
-        if pids:
-            return check("watcher process running", True, f"pid {', '.join(pids)}")
-        return check("watcher process running", False, "no matching process")
-    except Exception as e:
-        return check("watcher process running", False, f"{type(e).__name__}: {e}")
+    pids = brain_platform.watcher_pids(watcher_path)
+    if pids:
+        return check("watcher process running", True, f"pid {', '.join(pids)}")
+    return check("watcher process running", False, "no matching process")
 
 
-def check_launchd(config) -> dict:
-    try:
-        uid = os.getuid()
-        target = f"gui/{uid}/{config.LAUNCHD_LABEL}"
-        r = subprocess.run(
-            ["launchctl", "print", target],
-            capture_output=True, text=True, timeout=5,
-        )
-        return check("launchd job loaded", r.returncode == 0, target)
-    except Exception as e:
-        return check("launchd job loaded", False, f"{type(e).__name__}: {e}")
+def check_service(config) -> dict:
+    ok, detail = brain_platform.service_loaded(config.SERVICE_LABEL)
+    return check("watcher service loaded", ok, detail)
 
 
 def check_mcp_registered() -> dict:
@@ -148,17 +131,13 @@ def check_hooks_installed(config) -> dict:
         return check("hooks installed in settings.json", False, f"could not parse: {e}")
 
     hooks = settings.get("hooks", {})
-    hook_files = {
-        "SessionStart": "session-start-context.py",
-        "PreCompact": "pre-compact-flush.py",
-        "Stop": "session-end-flush.py",
-    }
+    hooks_dir = config.APP_DIR / "hooks"
+    hook_events = ("SessionStart", "PreCompact", "Stop")
     missing = []
-    for event, fname in hook_files.items():
-        marker = str(config.APP_DIR / "hooks" / fname)
+    for event in hook_events:
         entries = hooks.get(event, [])
         found = any(
-            marker in h.get("command", "")
+            hook_entry_belongs(h, hooks_dir)
             for entry in entries
             for h in entry.get("hooks", [])
         )
@@ -216,9 +195,9 @@ def run_checks() -> list[dict]:
     results.append(check_api_key("ANTHROPIC_API_KEY"))
 
     results.extend(check_vault_dirs(config))
-    results.append(check_env_mode(config))
+    results.append(check_secrets_locked(config))
     results.append(check_watcher_process(config))
-    results.append(check_launchd(config))
+    results.append(check_service(config))
     results.append(check_mcp_registered())
     results.append(check_hooks_installed(config))
     results.append(check_chroma(config))

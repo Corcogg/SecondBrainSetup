@@ -1,0 +1,138 @@
+name: install-smoke
+
+# Installer + doctor + watcher-boot smoke on both platforms. Uses stub API keys
+# and --skip-index, so no real key ever reaches CI and no provider is called.
+# Claude Code is not installed on the runners, so MCP/hook registration is
+# skipped and those two doctor checks are ignored by scripts/ci_assert_doctor.py.
+
+on:
+  push:
+    branches: [main, windows-port]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile everything
+        run: python -m py_compile scripts/*.py hooks/*.py
+      - name: Unit tests
+        run: python -m unittest discover -s scripts -p 'test_*.py' -v
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Place repo at the required install path
+        run: |
+          $root = Join-Path $env:USERPROFILE 'SecondBrain'
+          New-Item -ItemType Directory -Force $root | Out-Null
+          Copy-Item -Recurse -Force $env:GITHUB_WORKSPACE (Join-Path $root 'app')
+          "APP=$(Join-Path $root 'app')" | Out-File -Append $env:GITHUB_ENV
+          "VAULT=$(Join-Path $root 'vault')" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Stub .env (fake keys, never real)
+        run: |
+          Set-Content -Path (Join-Path $env:APP '.env') -Value "VOYAGE_API_KEY=ci-stub`nANTHROPIC_API_KEY=ci-stub" -NoNewline
+
+      - name: setup.ps1
+        run: |
+          & (Join-Path $env:APP 'setup.ps1') -NonInteractive -SkipMcp -SkipHooks -SkipIndex
+          "setup exit: $LASTEXITCODE"
+          # Two expected reds (MCP, hooks) make setup exit 1; the real gate is the assertion below.
+
+      - name: Task registered
+        run: |
+          schtasks /Query /TN com.secondbrain.watcher /FO LIST /V
+          if ($LASTEXITCODE -ne 0) { throw "task not registered" }
+
+      - name: Watcher boots (via task, else direct fallback)
+        run: |
+          $log = Join-Path $env:VAULT 'brain_watcher.log'
+          $deadline = (Get-Date).AddSeconds(20)
+          while ((Get-Date) -lt $deadline) {
+            if ((Test-Path $log) -and (Select-String -Path $log -Pattern 'watcher started' -Quiet)) { break }
+            Start-Sleep -Seconds 2
+          }
+          if (-not ((Test-Path $log) -and (Select-String -Path $log -Pattern 'watcher started' -Quiet))) {
+            Write-Host '::warning::Task Scheduler did not start the watcher in the CI session (no interactive logon); starting it directly for the smoke.'
+            $py = Join-Path $env:APP '.venv\Scripts\python.exe'
+            Start-Process -FilePath $py -ArgumentList '-u', (Join-Path $env:APP 'scripts\brain_watcher.py') -WorkingDirectory $env:APP -WindowStyle Hidden
+            Start-Sleep -Seconds 15
+          }
+          if (Test-Path $log) { Get-Content $log -Tail 30 } else { throw 'no watcher log written' }
+          if (-not (Select-String -Path $log -Pattern 'watcher started' -Quiet)) { throw 'watcher never logged its startup line' }
+
+      - name: doctor
+        run: |
+          $py = Join-Path $env:APP '.venv\Scripts\python.exe'
+          & $py (Join-Path $env:APP 'scripts\doctor.py') --json | Out-File -Encoding utf8 doctor.json
+          Get-Content doctor.json
+          & $py (Join-Path $env:APP 'scripts\ci_assert_doctor.py') doctor.json
+          if ($LASTEXITCODE -ne 0) { throw 'doctor assertion failed' }
+
+      - name: uninstall.ps1 leaves no task
+        run: |
+          & (Join-Path $env:APP 'uninstall.ps1') -SkipMcp -SkipHooks -Purge
+          schtasks /Query /TN com.secondbrain.watcher 2>$null
+          if ($LASTEXITCODE -eq 0) { throw 'task still registered after uninstall' }
+          "OK: task removed"
+
+  macos:
+    runs-on: macos-latest
+    env:
+      BRAIN_SERVICE_LABEL: com.secondbrain.watcher.ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Place repo at the required install path
+        run: |
+          mkdir -p "$HOME/SecondBrain"
+          cp -R "$GITHUB_WORKSPACE" "$HOME/SecondBrain/app"
+          echo "APP=$HOME/SecondBrain/app" >> "$GITHUB_ENV"
+          echo "VAULT=$HOME/SecondBrain/vault" >> "$GITHUB_ENV"
+
+      - name: Stub .env (fake keys, never real)
+        run: |
+          ( umask 077; printf 'VOYAGE_API_KEY=ci-stub\nANTHROPIC_API_KEY=ci-stub\n' > "$APP/.env" )
+
+      - name: setup.sh
+        run: |
+          set +e
+          "$APP/setup.sh" --non-interactive --skip-mcp --skip-hooks --skip-index
+          echo "setup exit: $?"   # expected 1: two ignored reds (MCP, hooks)
+
+      - name: Watcher boots
+        run: |
+          for i in $(seq 1 10); do
+            grep -q 'watcher started' "$VAULT/brain_watcher.log" 2>/dev/null && break
+            sleep 2
+          done
+          tail -n 30 "$VAULT/brain_watcher.log"
+          grep -q 'watcher started' "$VAULT/brain_watcher.log"
+
+      - name: doctor
+        run: |
+          "$APP/.venv/bin/python" "$APP/scripts/doctor.py" --json > doctor.json || true
+          cat doctor.json
+          "$APP/.venv/bin/python" "$APP/scripts/ci_assert_doctor.py" doctor.json
+
+      - name: uninstall.sh leaves no job
+        run: |
+          "$APP/uninstall.sh" --skip-mcp --skip-hooks --purge
+          if launchctl print "gui/$(id -u)/$BRAIN_SERVICE_LABEL" >/dev/null 2>&1; then
+            echo "job still loaded"; exit 1
+          fi
+          echo "OK: job removed"

@@ -11,9 +11,12 @@ A persistent memory for Claude Code. Tell it something once, and it remembers
 
 You'll need:
 
-- A Mac.
-- Claude Code installed and signed in. If you don't have it yet:
-  https://docs.claude.com/en/docs/claude-code
+- A Mac, or a Windows 10/11 PC (64-bit).
+- **On a Mac:** Claude Code installed and signed in. If you don't have it
+  yet: https://docs.claude.com/en/docs/claude-code
+- **On Windows:** [Claude Desktop](https://claude.com/download), plus the
+  Claude Code CLI and Git for Windows — Claude will install both for you if
+  they're missing (see [INSTALL-windows.md](INSTALL-windows.md)).
 - About 15 minutes.
 - Two free accounts you'll create along the way (below) — one of them
   typically costs a few dollars a month once you're using it regularly.
@@ -49,7 +52,9 @@ refuse them there.
 
 ## The one thing to paste into Claude Code
 
-1. Open **Terminal** (press `Cmd + Space`, type `Terminal`, press Enter).
+1. Open **Terminal** (press `Cmd + Space`, type `Terminal`, press Enter) on a
+   Mac, or **PowerShell** (press the Windows key, type `PowerShell`, press
+   Enter) on Windows.
 2. Type `claude` and press Enter.
 3. Paste this prompt and press Enter:
 

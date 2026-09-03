@@ -3,7 +3,7 @@
   "app_dir": "~/SecondBrain/app",
   "vault_dir": "~/SecondBrain/vault",
   "python": "~/SecondBrain/app/.venv/bin/python",
-  "launchd_label": "com.secondbrain.watcher",
+  "service_label": "com.secondbrain.watcher",
   "domains": [
     "general",
     "projects",
