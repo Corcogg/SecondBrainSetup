@@ -173,10 +173,12 @@ if ($uvCmd) {
 }
 if (-not $Uv) {
     Write-Host "  uv not found — installing via the official installer..."
-    try {
-        Invoke-RestMethod -Uri 'https://astral.sh/uv/install.ps1' | Invoke-Expression
-    } catch {
-        Fail "uv installer failed: $($_.Exception.Message). See https://docs.astral.sh/uv/getting-started/installation/"
+    # Run the installer in a child process, never via Invoke-Expression in this
+    # scope: the installer declares its own variables (e.g. $Help) that collide
+    # with this script's parameters under strict mode. (Seen on windows-latest CI.)
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+    if ($LASTEXITCODE -ne 0) {
+        Fail "uv installer failed (exit $LASTEXITCODE). See https://docs.astral.sh/uv/getting-started/installation/"
     }
     $uvCmd = Get-Command uv -ErrorAction SilentlyContinue
     if ($uvCmd) {
