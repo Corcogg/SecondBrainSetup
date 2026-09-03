@@ -12,7 +12,8 @@
 #
 # Env overrides:
 #   SECONDBRAIN_ROOT      install root (default: ~/SecondBrain)
-#   BRAIN_LAUNCHD_LABEL   launchd label (default: com.secondbrain.watcher)
+#   BRAIN_SERVICE_LABEL   launchd label (default: com.secondbrain.watcher);
+#                         BRAIN_LAUNCHD_LABEL is accepted as a fallback name
 #   VOYAGE_API_KEY / ANTHROPIC_API_KEY  optional; the preferred path is to put
 #     them in <app>/.env (KEY=value lines) before running — setup reads that file
 #     and never needs the keys on a command line or in a chat message.
@@ -55,7 +56,7 @@ else
 fi
 
 SECONDBRAIN_ROOT="${SECONDBRAIN_ROOT:-$HOME/SecondBrain}"
-LABEL="${BRAIN_LAUNCHD_LABEL:-com.secondbrain.watcher}"
+LABEL="${BRAIN_SERVICE_LABEL:-${BRAIN_LAUNCHD_LABEL:-com.secondbrain.watcher}}"
 APP="$SECONDBRAIN_ROOT/app"
 VAULT="$SECONDBRAIN_ROOT/vault"
 
@@ -232,7 +233,7 @@ if [ ! -f "$APP/brain_config.json" ]; then
   cp "$APP/brain_config.example.json" "$APP/brain_config.json"
   echo "  Created brain_config.json from the example."
 fi
-# Always sync the install-determined fields (paths + launchd label) so the
+# Always sync the install-determined fields (paths + service label) so the
 # config file, not this script's env, is the single source of truth.
 "$APP/.venv/bin/python" - "$APP/brain_config.json" "$APP" "$VAULT" "$LABEL" <<'PYEOF'
 import json
@@ -244,12 +245,12 @@ with open(cfg_path) as f:
 cfg["app_dir"] = app_dir
 cfg["vault_dir"] = vault_dir
 cfg["python"] = app_dir + "/.venv/bin/python"
-cfg["launchd_label"] = label
+cfg["service_label"] = label
 with open(cfg_path, "w") as f:
     json.dump(cfg, f, indent=2)
     f.write("\n")
 PYEOF
-echo "  OK: brain_config.json paths and launchd label are current."
+echo "  OK: brain_config.json paths and service label are current."
 
 echo "  OK: vault at $VAULT (own git repo, no remote)."
 

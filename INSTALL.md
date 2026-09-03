@@ -1,5 +1,7 @@
 # INSTALL.md — runbook
 
+macOS only. On Windows, use [INSTALL-windows.md](INSTALL-windows.md) instead.
+
 This is the ordered list of steps Claude executes to install Second Brain
 for a non-technical user. Each step has: the exact command, what success
 looks like, the doctor check that proves it, and what to do if it fails.

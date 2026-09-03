@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  watcher-task.xml.template — rendered by setup.ps1 into %TEMP%, registered
+  with `schtasks /Create /F /TN <label> /XML <rendered>`, then deleted. Never
+  kept on disk long-term (see docs/ARCHITECTURE.md "Windows port — contract").
+
+  Placeholders: __LABEL__ __PYTHONW__ __APP__ __LOG__ __USERID__
+
+  __LOG__ is informational only here (used in the Description text below so a
+  human reading the registered task in Task Scheduler's GUI can find the log
+  file). It is NOT wired to stdout/stderr redirection: pythonw.exe has no
+  console and Task Scheduler's XML schema has no stdout/stderr redirect
+  field for an Exec action (unlike launchd's StandardOutPath/StandardErrorPath
+  on macOS). The watcher's own RotatingFileHandler at that path is the sole
+  log sink — see docs/ARCHITECTURE.md and scripts/brain_watcher.py ~line 70.
+
+  Encoding note: setup.ps1 renders this to a real UTF-16LE file (Task
+  Scheduler's schtasks /XML importer expects UTF-16) and rewrites this
+  header's encoding attribute to "UTF-16" at that point. The copy checked
+  into git stays UTF-8 so it round-trips cleanly through git and xmllint.
+-->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Second Brain background watcher (__LABEL__). Log: __LOG__</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+      <UserId>__USERID__</UserId>
+    </LogonTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>__USERID__</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>true</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>3</Count>
+    </RestartOnFailure>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>__PYTHONW__</Command>
+      <Arguments>-u "__APP__\scripts\brain_watcher.py"</Arguments>
+      <WorkingDirectory>__APP__</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
