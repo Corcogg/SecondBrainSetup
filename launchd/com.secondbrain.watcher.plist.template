@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>__LABEL__</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>-c</string>
+		<string>set -a; [ -f "__APP__/.env" ] &amp;&amp; . "__APP__/.env"; set +a; exec "__PYTHON__" -u "__APP__/scripts/brain_watcher.py"</string>
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+		<key>BRAIN_CONFIG</key>
+		<string>__APP__/brain_config.json</string>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>__LOG__</string>
+	<key>StandardErrorPath</key>
+	<string>__LOG__</string>
+	<key>WorkingDirectory</key>
+	<string>__APP__</string>
+</dict>
+</plist>
