@@ -4,7 +4,9 @@
 # never touches .env (your keys). Safe to re-run.
 #
 # Flags:
-#   --purge   also delete .venv and .env from the app folder (never the vault)
+#   --purge        also delete .venv and .env from the app folder (never the vault)
+#   --skip-mcp     leave the Claude Code MCP registration alone
+#   --skip-hooks   leave the Claude Code hooks alone
 #
 # Env overrides:
 #   SECONDBRAIN_ROOT      install root (default: ~/SecondBrain)
@@ -13,12 +15,16 @@
 set -euo pipefail
 
 PURGE=0
+SKIP_MCP=0
+SKIP_HOOKS=0
 for arg in "$@"; do
   case "$arg" in
     --purge) PURGE=1 ;;
+    --skip-mcp) SKIP_MCP=1 ;;
+    --skip-hooks) SKIP_HOOKS=1 ;;
     -h|--help)
       cat <<'EOF'
-Usage: uninstall.sh [--purge]
+Usage: uninstall.sh [--purge] [--skip-mcp] [--skip-hooks]
 EOF
       exit 0
       ;;
@@ -53,7 +59,9 @@ fi
 # ── MCP ───────────────────────────────────────────────────────────────────
 
 echo "[2/4] Removing MCP registration..."
-if command -v claude >/dev/null 2>&1; then
+if [ "$SKIP_MCP" = "1" ]; then
+  echo "  Skipped (--skip-mcp)."
+elif command -v claude >/dev/null 2>&1; then
   claude mcp remove claude-brain --scope user >/dev/null 2>&1 || true
   echo "  Removed 'claude-brain' from Claude Code (if it was registered)."
 else
@@ -63,7 +71,9 @@ fi
 # ── Hooks ─────────────────────────────────────────────────────────────────
 
 echo "[3/4] Removing Claude Code hooks..."
-if [ -x "$APP/.venv/bin/python" ] && [ -f "$APP/scripts/install_hooks.py" ]; then
+if [ "$SKIP_HOOKS" = "1" ]; then
+  echo "  Skipped (--skip-hooks)."
+elif [ -x "$APP/.venv/bin/python" ] && [ -f "$APP/scripts/install_hooks.py" ]; then
   "$APP/.venv/bin/python" "$APP/scripts/install_hooks.py" --uninstall
   echo "  Hooks removed from ~/.claude/settings.json (backed up first)."
 else

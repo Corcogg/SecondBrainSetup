@@ -230,22 +230,26 @@ EOF
 
 if [ ! -f "$APP/brain_config.json" ]; then
   cp "$APP/brain_config.example.json" "$APP/brain_config.json"
-  "$APP/.venv/bin/python" - "$APP/brain_config.json" "$APP" "$VAULT" <<'PYEOF'
+  echo "  Created brain_config.json from the example."
+fi
+# Always sync the install-determined fields (paths + launchd label) so the
+# config file, not this script's env, is the single source of truth.
+"$APP/.venv/bin/python" - "$APP/brain_config.json" "$APP" "$VAULT" "$LABEL" <<'PYEOF'
 import json
 import sys
 
-cfg_path, app_dir, vault_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+cfg_path, app_dir, vault_dir, label = sys.argv[1:5]
 with open(cfg_path) as f:
     cfg = json.load(f)
 cfg["app_dir"] = app_dir
 cfg["vault_dir"] = vault_dir
 cfg["python"] = app_dir + "/.venv/bin/python"
+cfg["launchd_label"] = label
 with open(cfg_path, "w") as f:
     json.dump(cfg, f, indent=2)
     f.write("\n")
 PYEOF
-  echo "  Created brain_config.json with real paths."
-fi
+echo "  OK: brain_config.json paths and launchd label are current."
 
 echo "  OK: vault at $VAULT (own git repo, no remote)."
 

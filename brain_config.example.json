@@ -4,8 +4,21 @@
   "vault_dir": "~/SecondBrain/vault",
   "python": "~/SecondBrain/app/.venv/bin/python",
   "launchd_label": "com.secondbrain.watcher",
-  "domains": ["general", "projects", "system"],
-  "domain_dirs": {"general": "facts", "projects": "projects", "system": "system"},
+  "domains": [
+    "general",
+    "projects",
+    "system"
+  ],
+  "domain_dirs": {
+    "general": "facts",
+    "projects": "projects",
+    "system": "system"
+  },
+  "domain_descriptions": {
+    "general": "personal facts, preferences, people, and decisions not tied to one project",
+    "projects": "anything about a specific project, codebase, or piece of work",
+    "system": "notes about this second brain setup itself"
+  },
   "cwd_domain_map": [],
   "models": {
     "structured": "claude-sonnet-5",

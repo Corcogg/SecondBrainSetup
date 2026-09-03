@@ -44,10 +44,12 @@ def check_config() -> tuple[dict, object | None]:
 
 def check_python(config) -> dict:
     try:
-        current = str(Path(sys.executable).resolve())
-        configured = str(Path(config.PYTHON).resolve())
+        # A uv/venv python is a symlink to the base interpreter, so compare the
+        # environment prefix (the venv dir) rather than the resolved binary.
+        current = str(Path(sys.prefix).resolve())
+        configured = str(Path(config.PYTHON).parent.parent.resolve())
         if current == configured:
-            return check("running python matches config PYTHON", True, current)
+            return check("running python matches config PYTHON", True, f"venv {current}")
         # Warn, don't fail: doctor may legitimately run under a different
         # interpreter (e.g. system python3.11) than the venv python configured
         # for hooks/watcher.

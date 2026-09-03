@@ -127,7 +127,10 @@ classify it and record the result by calling the set_frontmatter tool with:
 - status: "seedling"
 - summary: one sentence (max 25 words) stating what this note provides
 - created: YYYY-MM-DD from first date bullet, or "unknown"
-""".format(domains=", ".join(brain_config.DOMAINS))
+""".format(domains=", ".join(
+    f"{d} ({brain_config.DOMAIN_DESCRIPTIONS[d]})" if d in brain_config.DOMAIN_DESCRIPTIONS else d
+    for d in brain_config.DOMAINS
+))
 
 WIKILINK_SYSTEM = """\
 You are a knowledge graph assistant. Given a note and a list of candidate related

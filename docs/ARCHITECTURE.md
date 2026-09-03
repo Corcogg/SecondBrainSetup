@@ -52,6 +52,8 @@ All `~` are expanded. Every script and hook imports `brain_config` and uses ONLY
 - `domains`: allowed domain values. Drives the watcher's classifier enum, `brain_mcp.ALLOWED_DOMAINS`,
   `query_brain --domain` choices.
 - `domain_dirs`: domain → subfolder under `vault/memory/` used by `brain_remember`.
+- `domain_descriptions` (optional): domain → one-line meaning, shown to the classifier so it picks the right domain.
+- `launchd_label`: written by `setup.sh` (from `BRAIN_LAUNCHD_LABEL`, default `com.secondbrain.watcher`); `doctor.py` and `brain_test.py` read it from here.
 - `cwd_domain_map`: list of `{"fragment": str, "domain": str, "n": int}`; SessionStart hook matches
   `fragment` against the cwd to pick a domain filter. Written by the install interview.
 - `models.embed_dim` must match `models.embed`; watcher refuses to start on mismatch with the stored collection.

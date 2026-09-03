@@ -111,6 +111,7 @@ try:
     DOMAINS = list(_raw["domains"])
     DOMAIN_DIRS = dict(_raw["domain_dirs"])
     CWD_DOMAIN_MAP = list(_raw.get("cwd_domain_map", []))
+    DOMAIN_DESCRIPTIONS = dict(_raw.get("domain_descriptions", {}))
     _models = dict(_raw["models"])
     STRUCTURED_MODEL = _models["structured"]
     CLASSIFY_MODEL = _models["classify"]
