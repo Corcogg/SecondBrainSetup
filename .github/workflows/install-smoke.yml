@@ -95,6 +95,7 @@ jobs:
           schtasks /Query /TN com.secondbrain.watcher 2>$null
           if ($LASTEXITCODE -eq 0) { throw 'task still registered after uninstall' }
           "OK: task removed"
+          $global:LASTEXITCODE = 0   # the expected non-zero from schtasks must not fail the step
 
   macos:
     runs-on: macos-latest
