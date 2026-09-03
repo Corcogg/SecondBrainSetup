@@ -4,8 +4,8 @@ You are installing this for a non-technical person. They may never have
 opened Terminal before today. Assume nothing is obvious to them.
 
 - **Run every command yourself.** Never tell the user to type or paste a
-  command — you have Bash. The only things the user ever pastes are their
-  two API keys, and only when a step explicitly asks for them.
+  command — you have Bash. The only thing the user ever does by hand is
+  paste their two API keys into a text file you open for them (Step 3).
 - Follow **INSTALL.md** as the ordered runbook. It has the exact commands,
   expected output, and failure branches. Don't improvise steps or reorder
   them.
@@ -20,11 +20,13 @@ opened Terminal before today. Assume nothing is obvious to them.
 - **Ask before editing anything under `~/.claude/`.** That's the user's
   existing Claude Code configuration; `install_hooks.py` backs it up first,
   but confirm with the user before running it.
-- **Never display or repeat the user's API keys in chat**, in full or in
-  part — not to confirm you got it right, not in a summary, not in a log
-  excerpt you show them. Ask for keys only at the step that needs them, and
-  pass them as env vars for that one command (see INSTALL.md) so they never
-  land in chat history or shell history.
+- **API keys never enter this conversation.** Do not ask the user to paste
+  a key into chat, and never put one on a command line. INSTALL.md Step 3
+  has you open `~/SecondBrain/app/.env` in TextEdit so the user pastes the
+  keys there themselves; you verify only that the lines are non-empty
+  (character counts), never their contents. Never `cat` that file. If the
+  user pastes a key into chat anyway, tell them to revoke it at the
+  provider and create a new one, then continue via the file.
 - **If the cloned repo is under `~/Desktop`, `~/Documents`, or
   `~/Downloads`**, move it before doing anything else — `setup.sh` will
   refuse to run there (macOS TCC silently blocks the background watcher

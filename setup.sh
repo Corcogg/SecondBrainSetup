@@ -13,9 +13,9 @@
 # Env overrides:
 #   SECONDBRAIN_ROOT      install root (default: ~/SecondBrain)
 #   BRAIN_LAUNCHD_LABEL   launchd label (default: com.secondbrain.watcher)
-#   VOYAGE_API_KEY / ANTHROPIC_API_KEY  pass for this one command to avoid
-#     ever typing them into a prompt:
-#     VOYAGE_API_KEY=<paste your Voyage key here> ANTHROPIC_API_KEY=<paste your Anthropic key here> ./setup.sh
+#   VOYAGE_API_KEY / ANTHROPIC_API_KEY  optional; the preferred path is to put
+#     them in <app>/.env (KEY=value lines) before running — setup reads that file
+#     and never needs the keys on a command line or in a chat message.
 
 set -euo pipefail
 
@@ -81,6 +81,14 @@ case "$SCRIPT_DIR" in
     echo "  macOS (TCC) silently blocks the background watcher from reading files in those folders, with no error." >&2
     echo "  Move the folder first, then re-run from the new location:" >&2
     echo "    mkdir -p \"$SECONDBRAIN_ROOT\" && mv \"$SCRIPT_DIR\" \"$APP\" && \"$APP/setup.sh\" $*" >&2
+    exit 1
+    ;;
+esac
+
+case "$SECONDBRAIN_ROOT" in
+  "$HOME/Desktop"|"$HOME/Desktop"/*|"$HOME/Documents"|"$HOME/Documents"/*|"$HOME/Downloads"|"$HOME/Downloads"/*)
+    echo "  ERROR: SECONDBRAIN_ROOT ($SECONDBRAIN_ROOT) is under Desktop, Documents, or Downloads." >&2
+    echo "  The background watcher cannot read those folders (macOS TCC). Use the default (~/SecondBrain) or another location under your home folder." >&2
     exit 1
     ;;
 esac
@@ -178,8 +186,7 @@ resolve_key() {
   fi
   if [ -z "$current" ]; then
     echo "  ERROR: $var_name is not set." >&2
-    echo "  Pass it as an env var for this one command so it never lands in shell history:" >&2
-    echo "    VOYAGE_API_KEY=<paste your Voyage key here> ANTHROPIC_API_KEY=<paste your Anthropic key here> ./setup.sh --non-interactive" >&2
+    echo "  Put it in $APP/.env as a line of the form ${var_name}=<your key> (see INSTALL.md Step 3), then re-run." >&2
     exit 1
   fi
   printf -v "$var_name" '%s' "$current"
@@ -262,12 +269,20 @@ set +e
 launchctl bootout "gui/$UID/${LABEL}" >/dev/null 2>&1
 BOOT_OUT="$(launchctl bootstrap "gui/$UID" "$PLIST_DST" 2>&1)"
 BOOT_STATUS=$?
+if [ "$BOOT_STATUS" -ne 0 ]; then
+  # launchctl bootstrap can return "5: Input/output error" transiently right
+  # after a bootout; a second attempt one second later normally succeeds.
+  sleep 1
+  BOOT_OUT="$(launchctl bootstrap "gui/$UID" "$PLIST_DST" 2>&1)"
+  BOOT_STATUS=$?
+fi
 set -e
 if [ "$BOOT_STATUS" -ne 0 ]; then
-  if printf '%s' "$BOOT_OUT" | grep -qi "input/output error"; then
-    echo "  Watcher already loaded — that's fine."
+  if launchctl print "gui/$UID/${LABEL}" >/dev/null 2>&1; then
+    echo "  OK: watcher is loaded (bootstrap said: $BOOT_OUT)."
   else
-    echo "  WARNING: launchctl bootstrap reported: $BOOT_OUT" >&2
+    echo "  WARNING: launchctl bootstrap failed twice: $BOOT_OUT" >&2
+    echo "  Run: launchctl bootstrap gui/$UID \"$PLIST_DST\"   (see INSTALL.md failure branches)" >&2
   fi
 else
   echo "  OK: watcher loaded ($PLIST_DST)."

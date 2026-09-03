@@ -169,6 +169,10 @@ def check_hooks_installed(config) -> dict:
 
 
 def check_chroma(config) -> dict:
+    # PersistentClient creates its directory as a side effect of opening, so
+    # only open it when the index already exists on disk.
+    if not config.CHROMA_PATH.exists():
+        return check("Chroma collection openable", False, f"{config.CHROMA_PATH} does not exist (index not built yet)")
     try:
         import chromadb
         client = chromadb.PersistentClient(path=str(config.CHROMA_PATH))

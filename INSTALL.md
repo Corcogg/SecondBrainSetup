@@ -47,23 +47,62 @@ open https://www.voyageai.com/
 open https://console.anthropic.com/
 ```
 
-Wait for the user to paste both keys into chat *only when you ask for them
-in Step 3* — don't collect them earlier or repeat them back.
+Tell the user: "Copy each key when you create it. In the next step I'll open
+a small text file for you to paste them into — please don't paste them into
+this chat."
 
 ---
 
-## Step 3 — Run setup.sh
+## Step 3 — Put the keys in the env file (keys never enter chat)
 
-Ask the user to paste both keys once you're ready to run this command, then
-run it with the keys as env vars **for this one invocation only** — prefix
-the command with a leading space so it doesn't land in shell history (check
-`echo $HISTCONTROL` first; if it doesn't include `ignorespace` or
-`ignoreboth`, the leading space alone won't help, but the keys still won't
-appear in Claude's own chat log this way):
+The keys must not pass through this conversation, a command line, or shell
+history. The user pastes them into a file that only they can read; `setup.sh`
+reads that file.
+
+1. Create the file with placeholders and owner-only permissions, then open it
+   in TextEdit:
 
 ```
- VOYAGE_API_KEY="<pasted>" ANTHROPIC_API_KEY="<pasted>" ~/SecondBrain/app/setup.sh --non-interactive
+mkdir -p ~/SecondBrain/app
+( umask 077; printf 'VOYAGE_API_KEY=\nANTHROPIC_API_KEY=\n' > ~/SecondBrain/app/.env )
+chmod 600 ~/SecondBrain/app/.env
+open -e ~/SecondBrain/app/.env
 ```
+
+2. Tell the user exactly this: "A text file just opened. Paste your Voyage
+   key right after `VOYAGE_API_KEY=` on the first line, and your Anthropic
+   key right after `ANTHROPIC_API_KEY=` on the second line. No spaces, no
+   quotes. Then press Cmd+S to save and close the window. Tell me when
+   you're done."
+
+3. Verify without reading the values — only that both lines have something
+   after the `=`:
+
+```
+awk -F= '/^(VOYAGE|ANTHROPIC)_API_KEY=/ { printf "%s: %d chars\n", $1, length($2) }' ~/SecondBrain/app/.env
+```
+
+**Expected output:** two lines, each with a non-zero character count
+(Voyage keys are roughly 40–50 characters, Anthropic keys roughly 100+).
+
+**If a count is 0:** the paste didn't take. Re-open the file with
+`open -e ~/SecondBrain/app/.env` and ask them to try again. Never `cat` the
+file and never ask the user to paste a key into chat.
+
+**If a count looks far too long or the file has extra lines:** the user may
+have pasted with a trailing newline or twice. Re-create the file with the
+`printf` command above and repeat.
+
+---
+
+## Step 4 — Run setup.sh
+
+```
+~/SecondBrain/app/setup.sh --non-interactive
+```
+
+`setup.sh` reads the keys from `.env`; nothing needs to be passed on the
+command line.
 
 **Expected output:** ten `[n/10] ...` lines, each followed by a one-line
 result, ending with `Setup complete — all checks green.` and a doctor
@@ -88,9 +127,15 @@ last resort, re-run with `--skip-mcp --skip-hooks` and finish those two
 steps manually later once `claude` is on PATH.
 
 ### launchctl "Input/output error"
-Symptom: setup.sh Step 6 prints a warning containing "Input/output error."
-This is not a real failure — it means the watcher was already loaded.
-setup.sh already treats this as success; no action needed.
+Symptom: `launchctl bootstrap` prints `Bootstrap failed: 5: Input/output error`.
+This is a transient launchd quirk right after a bootout, not a real failure.
+setup.sh already retries once after one second and then checks whether the job
+is loaded. If it still warns, run the bootstrap once more yourself:
+
+```
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.secondbrain.watcher.plist
+launchctl print gui/$UID/com.secondbrain.watcher | head -3
+```
 
 ### Notification permission dialog
 The first time the watcher runs, macOS may show *"Terminal" (or "python")
@@ -99,16 +144,22 @@ is just so the watcher can tell them when it finishes tagging a note, and
 either answer is fine — nothing breaks if they click **Don't Allow**.
 
 ### Voyage 401 (unauthorized)
-Symptom: `doctor.py` shows red on the embedding/Voyage check, or
-`build_index.py` errors with a 401. The pasted key is wrong or has a typo.
-Ask the user to re-copy it from https://www.voyageai.com/ (API Keys page)
-and re-run `setup.sh` with the corrected key — it overwrites `.env` safely.
+Symptom: setup.sh Step 9 (`build_index.py`) errors with a 401 / "Provided API
+key is invalid", or `~/SecondBrain/vault/brain_watcher.log` shows the same.
+(`doctor.py` makes no network calls, so it only confirms the key is present,
+not that it works.) The pasted key is wrong or has a typo. Re-open the env
+file with `open -e ~/SecondBrain/app/.env`, ask the user to replace the
+Voyage line's value from https://www.voyageai.com/ (API Keys page), save,
+then re-run `setup.sh --non-interactive`.
 
 ### Anthropic 401 / billing not enabled / credit required
-Symptom: `doctor.py` red on the Anthropic check, or an error mentioning
-"credit balance" or "billing." Ask the user to check
+Symptom: `~/SecondBrain/vault/brain_watcher.log` shows a 401, or an error
+mentioning "credit balance" or "billing", after the first note is saved.
+(The Anthropic key is used only by the watcher when it tags a note, so a bad
+key shows up at the recall demo, not during setup.) Ask the user to check
 https://console.anthropic.com/settings/billing has a payment method and
-some credit, then re-run `setup.sh`.
+some credit, or fix the key via `open -e ~/SecondBrain/app/.env`, then
+restart the watcher: `launchctl kickstart -k gui/$UID/com.secondbrain.watcher`.
 
 ### Vault under Desktop/Documents/Downloads
 Symptom: setup.sh's own preflight (Step 1) refuses to run and explains
@@ -139,7 +190,7 @@ cp "<that file>" ~/.claude/settings.json
 
 ---
 
-## Step 4 — Interview
+## Step 5 — Interview
 
 Follow `templates/interview.md` exactly: one question at a time, offer the
 stated default, show the three finished files (SOUL.md, USER.md, MEMORY.md)
@@ -155,7 +206,7 @@ which was already green).
 
 ---
 
-## Step 5 — Restart Claude Code
+## Step 6 — Restart Claude Code
 
 Tell the user to fully quit Claude Code (**Cmd+Q** — closing the window is
 not enough) and reopen it. Explain why in one sentence: the new MCP server
@@ -163,7 +214,7 @@ and hooks are only loaded when Claude Code starts up.
 
 ---
 
-## Step 6 — Verify, in the new session
+## Step 7 — Verify, in the new session
 
 Do these checks after the restart, in a **new** Claude Code session:
 
@@ -185,7 +236,7 @@ branch above — don't debug blind.
 
 ---
 
-## Step 7 — Day-to-day briefing
+## Step 8 — Day-to-day briefing
 
 Read this to the user once everything is verified:
 

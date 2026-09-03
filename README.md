@@ -20,8 +20,8 @@ You'll need:
 
 ## Get your two keys
 
-Second Brain needs two API keys: one for search, one for the AI tagging and
-conversation itself. Claude will ask you to paste these in during setup —
+Second Brain needs two API keys: one for search, one for the AI tagging of
+your notes. Claude will open a file for you to paste them into during setup —
 until then, just get them ready.
 
 ### 1. Voyage AI key (free)
@@ -41,9 +41,11 @@ until then, just get them ready.
    isn't expensive, but it isn't free.
 3. Under **API Keys**, create a new key and copy it somewhere safe.
 
-Keep both keys handy. You'll paste them once, when Claude asks — never
-anywhere else, and never in a message you'd want someone else to read back,
-since chat history isn't a safe place for secrets.
+Keep both keys handy. During setup Claude will open a small text file on
+your screen and ask you to paste each key on its own line, then save. That
+is the only place the keys ever go. Never paste them into the chat itself —
+chat history is not a safe place for secrets, and Claude is instructed to
+refuse them there.
 
 ## The one thing to paste into Claude Code
 

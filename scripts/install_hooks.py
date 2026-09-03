@@ -17,6 +17,7 @@ Usage:
 import argparse
 import json
 import os
+import shlex
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -59,7 +60,7 @@ def _backup(path: Path) -> Path | None:
 
 def _hook_command(python: str, app_dir: Path, hook_file: str) -> str:
     hook_path = app_dir / "hooks" / hook_file
-    return f"{python} {hook_path}"
+    return f"{shlex.quote(python)} {shlex.quote(str(hook_path))}"
 
 
 def install(config, settings_path: Path) -> None:
