@@ -1,5 +1,8 @@
 # Second Brain — agent brief
 
+**Installing for someone? Read `START-HERE.md` first and follow it.** It is
+the orchestrating script; this brief and the runbooks are its references.
+
 You are installing this for a non-technical person. They may never have
 opened Terminal (or PowerShell) before today. Assume nothing is obvious to
 them.
@@ -50,9 +53,9 @@ them.
   from reading files in those folders). INSTALL.md has the exact `mv`. This
   guard does not exist on Windows (no TCC) — `setup.ps1` only requires the
   repo to be at `%USERPROFILE%\SecondBrain\app`.
-- When setup finishes, run the **interview** (`templates/interview.md`) —
-  one question at a time, defaults offered, show the finished files for
-  approval before writing them.
+- When setup finishes, run the **interview** (`templates/interview.md`):
+  a guided conversation with examples and sample replies; show friendly
+  drafts for approval before writing.
 - Finish with the **recall demo**: save the interview's "one thing to
   remember" answer, start a fresh Claude Code session, and show the user it
   comes back. That's the proof the system works.

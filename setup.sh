@@ -221,6 +221,10 @@ done
 if [ ! -d "$VAULT/.git" ]; then
   git -C "$VAULT" init -q
 fi
+# Repo-local identity so the watcher's auto-commit works on a fresh Mac where
+# git has never been configured (global user.name/email unset).
+git -C "$VAULT" config user.name >/dev/null 2>&1 || git -C "$VAULT" config user.name "Second Brain"
+git -C "$VAULT" config user.email >/dev/null 2>&1 || git -C "$VAULT" config user.email "brain@localhost"
 
 cat > "$VAULT/.gitignore" <<'EOF'
 .chroma/

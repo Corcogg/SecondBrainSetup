@@ -406,65 +406,68 @@ def process_note(client: anthropic.Anthropic, voyage_client, collection, filepat
                 modified = True
 
     # ── Step 2: Suggest and inject high-confidence wikilinks ───────────────
-    # Candidates come from the vector store: the 40 nearest notes to this
-    # one, rather than the first 80 files in rglob order.
-    try:
-        candidates = get_link_candidates(
-            voyage_client, collection, content, filepath.stem, k=40
-        )
-    except Exception as e:
-        log.error(f"Link candidate retrieval error on {filepath.name}: {e}")
-        candidates = []
-
-    suggestions = []
-    if candidates:
-        candidate_text = "\n".join(
-            f"- {stem}: {title} — {summary}"
-            for stem, title, summary in candidates
-        )
-        result = _call_structured(
-            client,
-            system=WIKILINK_SYSTEM,
-            user_content=(
-                f"NOTE FILE: {filepath.stem}\n\n"
-                f"NOTE CONTENT:\n{content}\n\n"
-                f"CANDIDATE NOTES (nearest first):\n{candidate_text}"
-            ),
-            tool=WIKILINK_TOOL,
-            max_tokens=2048,
-        )
-        if result is not None:
-            raw_suggestions = result.get("suggestions", [])
-            suggestions = [s for s in raw_suggestions if isinstance(s, dict)]
-        else:
-            log.error(f"Wikilink error on {filepath.name}: structured call failed")
-
-    # Apply only high-confidence links whose targets exist and anchor is present.
-    # Target validation checks the FULL vault index (disk), not just the 40
-    # candidates, so a stale candidate list can't validate a dead target.
-    # Replacements apply to the BODY only — an anchor that happens to match
-    # frontmatter text must never inject [[links]] into YAML fields.
+    # Opt-in (brain_config auto_wikilinks); skipped by default.
     applied_count = 0
-    if suggestions:
-        split = _extract_frontmatter_block(content)
-        fm, body = split if split else ("", content)
-        note_index = get_note_index()
-        for s in suggestions:
-            if s.get("confidence") != "high":
-                continue
-            target      = s.get("target", "")
-            anchor      = s.get("anchor", "")
-            replacement = s.get("replacement", "")
-            if not anchor or not replacement or not target:
-                continue
-            if target not in note_index:
-                continue
-            if anchor in body and replacement not in body:
-                body = body.replace(anchor, replacement, 1)
-                applied_count += 1
-                modified = True
-        if applied_count:
-            content = fm + body
+    if brain_config.AUTO_WIKILINKS:
+        # Candidates come from the vector store: the 40 nearest notes to this
+        # one, rather than the first 80 files in rglob order.
+        try:
+            candidates = get_link_candidates(
+                voyage_client, collection, content, filepath.stem, k=40
+            )
+        except Exception as e:
+            log.error(f"Link candidate retrieval error on {filepath.name}: {e}")
+            candidates = []
+
+        suggestions = []
+        if candidates:
+            candidate_text = "\n".join(
+                f"- {stem}: {title} — {summary}"
+                for stem, title, summary in candidates
+            )
+            result = _call_structured(
+                client,
+                system=WIKILINK_SYSTEM,
+                user_content=(
+                    f"NOTE FILE: {filepath.stem}\n\n"
+                    f"NOTE CONTENT:\n{content}\n\n"
+                    f"CANDIDATE NOTES (nearest first):\n{candidate_text}"
+                ),
+                tool=WIKILINK_TOOL,
+                max_tokens=2048,
+            )
+            if result is not None:
+                raw_suggestions = result.get("suggestions", [])
+                suggestions = [s for s in raw_suggestions if isinstance(s, dict)]
+            else:
+                log.error(f"Wikilink error on {filepath.name}: structured call failed")
+
+        # Apply only high-confidence links whose targets exist and anchor is present.
+        # Target validation checks the FULL vault index (disk), not just the 40
+        # candidates, so a stale candidate list can't validate a dead target.
+        # Replacements apply to the BODY only — an anchor that happens to match
+        # frontmatter text must never inject [[links]] into YAML fields.
+        applied_count = 0
+        if suggestions:
+            split = _extract_frontmatter_block(content)
+            fm, body = split if split else ("", content)
+            note_index = get_note_index()
+            for s in suggestions:
+                if s.get("confidence") != "high":
+                    continue
+                target      = s.get("target", "")
+                anchor      = s.get("anchor", "")
+                replacement = s.get("replacement", "")
+                if not anchor or not replacement or not target:
+                    continue
+                if target not in note_index:
+                    continue
+                if anchor in body and replacement not in body:
+                    body = body.replace(anchor, replacement, 1)
+                    applied_count += 1
+                    modified = True
+            if applied_count:
+                content = fm + body
 
     if modified:
         # Re-check existence — file may have been deleted during our API calls;
@@ -474,8 +477,11 @@ def process_note(client: anthropic.Anthropic, voyage_client, collection, filepat
             return
         _mark_self_write(str(filepath), content)
         filepath.write_text(content, encoding="utf-8")
-        log.info(f"Updated {filepath.name} — {applied_count} links injected")
-        notify("Second Brain", f"{filepath.stem}: {applied_count} links added")
+        if applied_count:
+            log.info(f"Updated {filepath.name} — {applied_count} links injected")
+            notify("Second Brain", f"{filepath.stem}: {applied_count} links added")
+        else:
+            log.info(f"Updated {filepath.name} — frontmatter/summary written")
     else:
         log.info(f"No changes needed: {filepath.name}")
 

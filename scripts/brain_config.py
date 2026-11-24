@@ -127,6 +127,9 @@ try:
     EMBED_MODEL = _models["embed"]
     EMBED_DIM = _models["embed_dim"]
     NOTIFICATIONS = bool(_raw.get("notifications", True))
+    # Off by default: wikilink suggestions cost a Sonnet call per note and
+    # recall does not follow links. Set "auto_wikilinks": true to enable.
+    AUTO_WIKILINKS = bool(_raw.get("auto_wikilinks", False))
 except KeyError as e:
     raise ConfigError(f"brain_config: missing required key {e} in {CONFIG_PATH}") from e
 

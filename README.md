@@ -7,73 +7,65 @@ A persistent memory for Claude Code. Tell it something once, and it remembers
 - Claude can search them by meaning ("what did I decide about X?"), not just exact keywords.
 - A background helper quietly tags and links new notes as you add them — you don't have to organize anything.
 
-## Before you start
+## Setting up (about 25 minutes)
 
-You'll need:
+You only do **Step 0** yourself. After that, Claude walks you through
+everything and does the technical parts.
 
-- A Mac, or a Windows 10/11 PC (64-bit).
-- **On a Mac:** Claude Code installed and signed in. If you don't have it
-  yet: https://docs.claude.com/en/docs/claude-code
-- **On Windows:** [Claude Desktop](https://claude.com/download), plus the
-  Claude Code CLI and Git for Windows — Claude will install both for you if
-  they're missing (see [INSTALL-windows.md](INSTALL-windows.md)).
-- About 15 minutes.
-- Two free accounts you'll create along the way (below) — one of them
-  typically costs a few dollars a month once you're using it regularly.
+### Step 0: Get Claude on your Mac (one time, about 5 minutes)
 
-## Get your two keys
+1. Go to https://claude.ai, sign up, and choose the **Pro** plan ($20/month).
+2. Open **Terminal**: press `Cmd + Space`, type `Terminal`, and press Enter.
+   A window with text appears. That's where you'll talk to Claude.
+3. Copy this line, paste it into Terminal, and press Enter. It installs
+   Claude Code:
 
-Second Brain needs two API keys: one for search, one for the AI tagging of
-your notes. Claude will open a file for you to paste them into during setup —
-until then, just get them ready.
+   ```
+   curl -fsSL https://claude.ai/install.sh | bash
+   ```
 
-### 1. Voyage AI key (free)
+4. When it finishes, type `claude` and press Enter. Pick a color theme, then
+   choose **Claude account with subscription** and sign in in the browser
+   window that opens. Come back to Terminal when it says you're signed in.
+   (If it says `command not found`, close Terminal, open it again, and retry.)
 
-1. Go to https://www.voyageai.com/ and sign up.
-2. Open the dashboard and find **API Keys**.
-3. Create a new key and copy it somewhere safe (a password manager, or a
-   sticky note you'll close after pasting it once). Voyage's free tier
-   covers this use case for most people.
+### Step 1: Paste this into Claude
 
-### 2. Anthropic key
-
-1. Go to https://console.anthropic.com/ and sign up.
-2. Add a payment method under **Billing** and add a small amount of credit
-   (a few dollars is plenty to start). This system typically costs a few
-   dollars a month in normal use — tagging notes and answering questions
-   isn't expensive, but it isn't free.
-3. Under **API Keys**, create a new key and copy it somewhere safe.
-
-Keep both keys handy. During setup Claude will open a small text file on
-your screen and ask you to paste each key on its own line, then save. That
-is the only place the keys ever go. Never paste them into the chat itself —
-chat history is not a safe place for secrets, and Claude is instructed to
-refuse them there.
-
-## The one thing to paste into Claude Code
-
-1. Open **Terminal** (press `Cmd + Space`, type `Terminal`, press Enter) on a
-   Mac, or **PowerShell** (press the Windows key, type `PowerShell`, press
-   Enter) on Windows.
-2. Type `claude` and press Enter.
-3. Paste this prompt and press Enter:
+Copy all of this, paste it into Claude, and press Enter:
 
 ```
-Please install my second brain from https://github.com/Corcogg/SecondBrainSetup.
-Read the README and INSTALL.md in that repo and walk me through it step by
-step. I am not technical, so run the commands for me and tell me before
-anything pops up.
+Please set up my second brain. First run:
+git clone https://github.com/Corcogg/SecondBrainSetup.git ~/SecondBrain/app
+Then read ~/SecondBrain/app/START-HERE.md and follow it exactly.
+I've never used AI or a terminal before, so go slowly and explain things simply.
 ```
 
-That's it. Claude will clone the project, install everything, and ask before
-any command runs or any dialog appears on your screen.
+From here, Claude guides you. It will:
+
+- explain the permission boxes you'll see (it's safe to click **Yes, and
+  don't ask again** during setup),
+- help you make two small accounts and get two keys (see the costs below),
+- install everything,
+- have a short conversation with you to set up your profile, and
+- show you that it really remembers you.
+
+### What it costs
+
+| What | Why | Cost |
+|---|---|---|
+| Claude Pro | The Claude you talk to | $20/month |
+| Anthropic API key | A small helper that labels each new note | about half a cent per note, usually under $1/month. Buy $5 of credit to start. |
+| Voyage AI key | Makes your notes searchable by meaning | Free at normal use (200M free tokens). Add a card anyway to avoid slowdowns. |
+
+The keys go into a file on your Mac that Claude opens for you. **Never paste
+a key into the chat.**
 
 ## What Claude will ask you
 
-Near the end of setup, Claude will interview you — about 5 minutes, one
-question at a time, plain language, no jargon. Things like your name, what
-you're working on, how you want Claude to talk to you, and one thing you'd
-want it to already know. Your answers become your profile; you can change
+Near the end of setup, Claude has a 10-minute conversation with you: your
+name, what you'd like help with, and how you want it to talk to you (it shows
+you sample replies so you can pick). Then it drafts your profile for you to
+approve. Your answers become your profile; you can change
 any of it later just by asking Claude.
 
 ## Using it day to day
