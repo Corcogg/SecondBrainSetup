@@ -9,22 +9,40 @@ A persistent memory for Claude Code. Tell it something once, and it remembers
 
 ## Setting up (about 25 minutes)
 
-You only do **Step 0** yourself. After that, Claude walks you through
-everything and does the technical parts.
+You do **Before you begin** and **Step 0** yourself. After that, Claude walks
+you through everything and does the technical parts.
+
+> **Use Terminal, not the Claude desktop app.** The memory lives in Claude
+> Code. The regular chat in the Claude desktop app can't see it.
+
+### Before you begin: make three accounts (about 10 minutes)
+
+Have your Mac login password, a card, and your phone (for verification codes)
+ready. Make all three accounts now, but **don't create any keys yet**. Claude
+walks you through the keys later and shows you where to paste them.
+
+1. **Claude Pro** ($20/month): go to https://claude.ai, sign up, and upgrade
+   to Pro.
+2. **Anthropic Console** (buy $5 of credit; it usually lasts months): go to
+   https://console.anthropic.com and sign up. This is separate from Claude
+   Pro, and the same email is fine. Under **Billing**, add a card and buy
+   $5. Leave auto-reload off.
+3. **Voyage AI** (free at normal use): go to https://dashboard.voyageai.com
+   and sign up. Under **Billing**, add a card. You won't be charged, but
+   without one Voyage is slow enough that setup can fail.
 
 ### Step 0: Get Claude on your Mac (one time, about 5 minutes)
 
-1. Go to https://claude.ai, sign up, and choose the **Pro** plan ($20/month).
-2. Open **Terminal**: press `Cmd + Space`, type `Terminal`, and press Enter.
+1. Open **Terminal**: press `Cmd + Space`, type `Terminal`, and press Enter.
    A window with text appears. That's where you'll talk to Claude.
-3. Copy this line, paste it into Terminal, and press Enter. It installs
+2. Copy this line, paste it into Terminal, and press Enter. It installs
    Claude Code:
 
    ```
    curl -fsSL https://claude.ai/install.sh | bash
    ```
 
-4. When it finishes, type `claude` and press Enter. Pick a color theme, then
+3. When it finishes, type `claude` and press Enter. Pick a color theme, then
    choose **Claude account with subscription** and sign in in the browser
    window that opens. Come back to Terminal when it says you're signed in.
    (If it says `command not found`, close Terminal, open it again, and retry.)

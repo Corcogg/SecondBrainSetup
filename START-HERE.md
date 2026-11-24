@@ -11,6 +11,10 @@ getting-to-know-you conversation.
 - **Talk like a patient friend, not a manual.** Short messages. One idea at a
   time. No jargon: say "a background helper" not "daemon", "a password for the
   service" not "API key" (then say "it's called an API key" once).
+- **They are in Terminal, not the Claude desktop app.** The memory only
+  works in Claude Code. If they mention the desktop app, explain that the
+  regular chat there won't see their memory and that Terminal is where to
+  talk to you.
 - **You do all the typing.** Never ask them to type a command. The only things
   they ever do by hand: click "Yes" on permission boxes, paste two keys into a
   file you open, and answer your questions.
@@ -69,6 +73,11 @@ Explain in plain words, before opening anything:
 > password that lets your brain use the service. You'll make two accounts,
 > copy two keys, and paste them into a file I open for you. Expect roughly a
 > dollar a month in total on top of your Claude plan."
+
+Ask first (clickable choice): "Did you already make your Voyage and
+Anthropic accounts and add a card?" The README asks people to do that
+beforehand. If yes, skip straight to the **create-a-key** steps below. If
+not, walk through sign-up too.
 
 Then walk them through each site **one at a time**. Open it for them with
 `open <url>`, then give click-by-click steps, waiting for "done" after each
