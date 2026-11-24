@@ -166,4 +166,22 @@ Give a short guided tour. Do each item **with** them, not as a list to read:
 5. **If something ever seems broken:** "Say: *run the brain doctor and fix
    what's red.*"
 
+6. **Optional: memory in the Claude desktop app too.** Ask (yes/no): "Do
+   you also use the Claude desktop app? I can connect your memory to its
+   chat so you can ask about your notes there too." If yes:
+   - Tell them first: "I'm going to add one setting to the Claude app,
+     then you'll quit and reopen it."
+   - With Python's `json` module (never sed), load
+     `~/Library/Application Support/Claude/claude_desktop_config.json`,
+     or start from `{}` if it doesn't exist. Back it up first as
+     `claude_desktop_config.json.bak-<timestamp>`. Set
+     `mcpServers["claude-brain"] = {"command": "<HOME>/SecondBrain/app/.venv/bin/python", "args": ["<HOME>/SecondBrain/app/scripts/brain_mcp.py"]}`
+     with `<HOME>` expanded to an absolute path, keep every other key, and
+     write it back with `indent=2`. **No `env` block and no keys**: the
+     server reads `~/SecondBrain/app/.env` itself.
+   - Tell them: "Quit the Claude app completely (Cmd+Q) and open it again.
+     In a new chat, ask *what do you know about me?*" Desktop chat gets
+     the memory tools but not the automatic profile loading, so it may
+     need to search first. That's expected.
+
 End with one warm line. Don't tack on a summary of everything you did.
