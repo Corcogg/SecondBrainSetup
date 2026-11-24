@@ -10,7 +10,8 @@
 #
 # Env overrides:
 #   SECONDBRAIN_ROOT      install root (default: ~/SecondBrain)
-#   BRAIN_LAUNCHD_LABEL   launchd label (default: com.secondbrain.watcher)
+#   BRAIN_SERVICE_LABEL   launchd label (default: com.secondbrain.watcher);
+#                         BRAIN_LAUNCHD_LABEL is accepted as a fallback name
 
 set -euo pipefail
 
@@ -36,7 +37,7 @@ EOF
 done
 
 SECONDBRAIN_ROOT="${SECONDBRAIN_ROOT:-$HOME/SecondBrain}"
-LABEL="${BRAIN_LAUNCHD_LABEL:-com.secondbrain.watcher}"
+LABEL="${BRAIN_SERVICE_LABEL:-${BRAIN_LAUNCHD_LABEL:-com.secondbrain.watcher}}"
 APP="$SECONDBRAIN_ROOT/app"
 VAULT="$SECONDBRAIN_ROOT/vault"
 

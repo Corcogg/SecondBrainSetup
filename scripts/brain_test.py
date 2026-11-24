@@ -15,27 +15,30 @@ The E2E test waits ~45s for the live watcher to process a disposable note.
 import os
 import sys
 import time
-import plistlib
 import subprocess
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brain_config  # noqa: E402 — loads <APP_DIR>/.env as a side effect
+import brain_platform  # noqa: E402
 
 # ── Setup ────────────────────────────────────────────────────────────────────
-PLIST = Path(os.path.expanduser("~/Library/LaunchAgents")) / f"{brain_config.LAUNCHD_LABEL}.plist"
 SCRIPTS = Path(__file__).resolve().parent
 VAULT = brain_config.VAULT_MEMORY
 _LOG_FILE = brain_config.LOG_FILE
 
-# brain_config already loaded <APP_DIR>/.env. As a last resort (pre-.env-
-# migration installs, or a plist that still embeds keys directly), also
-# check the rendered plist's EnvironmentVariables.
-if PLIST.exists():
-    env = plistlib.loads(PLIST.read_bytes()).get("EnvironmentVariables", {})
-    for k, v in env.items():
-        os.environ.setdefault(k, v)
+# On macOS, brain_config already loaded <APP_DIR>/.env. As a last resort
+# (pre-.env-migration installs, or a plist that still embeds keys directly),
+# also check the rendered plist's EnvironmentVariables. Windows has no
+# plist/launchd equivalent, so this fallback is macOS-only.
+if not brain_platform.IS_WINDOWS:
+    import plistlib
+    PLIST = Path(os.path.expanduser("~/Library/LaunchAgents")) / f"{brain_config.SERVICE_LABEL}.plist"
+    if PLIST.exists():
+        env = plistlib.loads(PLIST.read_bytes()).get("EnvironmentVariables", {})
+        for k, v in env.items():
+            os.environ.setdefault(k, v)
 
 results: list[tuple[str, bool, str]] = []
 
@@ -64,15 +67,14 @@ def test_compile():
 
 def test_watcher_alive():
     print("\n[2] Watcher daemon")
-    r = subprocess.run(["launchctl", "list"], capture_output=True, text=True)
-    line = next((ln for ln in r.stdout.splitlines() if brain_config.LAUNCHD_LABEL in ln), None)
-    if not line:
-        record("launchd agent loaded", False, "not in launchctl list")
-        return
-    parts = line.split()
-    pid, exit_code = parts[0], parts[1]
-    record("launchd agent loaded", pid != "-", f"pid={pid}")
-    record("last exit code zero", exit_code == "0", f"exit={exit_code}")
+    # Delegates to brain_platform so this suite stays OS-encapsulation-clean
+    # (brain_platform is the only module allowed to shell out to
+    # launchctl/schtasks). This collapses the old two-line macOS check
+    # (agent loaded / last exit code zero, from `launchctl list`) into one
+    # ok/detail check backed by `launchctl print` (mac) or `schtasks
+    # /Query` (Windows) — see brain_platform.service_loaded.
+    ok, detail = brain_platform.service_loaded(brain_config.SERVICE_LABEL)
+    record("watcher service loaded", ok, detail)
 
 
 # ── 3. Dim unification ───────────────────────────────────────────────────────

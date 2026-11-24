@@ -19,7 +19,6 @@ is solely responsible for embedding.
 
 import os
 import re
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -27,6 +26,7 @@ from pathlib import Path
 # Ensure brain_config / brain_vector are importable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brain_config  # noqa: E402 — loads <APP_DIR>/.env as a side effect
+import brain_platform  # noqa: E402
 
 from mcp.server.fastmcp import FastMCP
 import voyageai
@@ -207,18 +207,11 @@ def brain_status() -> str:
     lines = []
 
     # Watcher aliveness
-    try:
-        out = subprocess.run(
-            ["pgrep", "-f", str(WATCHER_SCRIPT)],
-            capture_output=True, text=True, timeout=3,
-        )
-        pids = [p for p in out.stdout.split() if p.strip()]
-        if pids:
-            lines.append(f"Watcher: running (pid {', '.join(pids)})")
-        else:
-            lines.append("Watcher: not running")
-    except Exception as e:
-        lines.append(f"Watcher: unknown ({type(e).__name__}: {e})")
+    pids = brain_platform.watcher_pids(WATCHER_SCRIPT)
+    if pids:
+        lines.append(f"Watcher: running (pid {', '.join(pids)})")
+    else:
+        lines.append("Watcher: not running")
 
     # Chroma note count
     try:

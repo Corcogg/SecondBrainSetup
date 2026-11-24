@@ -1,5 +1,11 @@
 # INSTALL.md — runbook
 
+> Coming from `START-HERE.md`? That file sets the order, the tone, and the
+> restart flow (`/exit` then `claude -c`). Use this file for the exact
+> commands and failure branches. Where the two differ, START-HERE wins.
+
+macOS only. On Windows, use [INSTALL-windows.md](INSTALL-windows.md) instead.
+
 This is the ordered list of steps Claude executes to install Second Brain
 for a non-technical user. Each step has: the exact command, what success
 looks like, the doctor check that proves it, and what to do if it fails.

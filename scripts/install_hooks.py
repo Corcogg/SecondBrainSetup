@@ -23,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import brain_platform  # noqa: E402
 
 
 HOOK_EVENTS = {
@@ -58,14 +59,43 @@ def _backup(path: Path) -> Path | None:
     return backup_path
 
 
-def _hook_command(python: str, app_dir: Path, hook_file: str) -> str:
+def _hook_command(python: str, app_dir: Path, hook_file: str) -> dict:
+    """Build the hook entry dict for one event.
+
+    macOS keeps today's shell-form string (a single quoted 'python' 'hook'
+    command), unchanged. Windows uses exec form — command is the interpreter,
+    args is a one-element list holding the hook script path — because
+    Claude Code on Windows runs shell-form commands through Git Bash or
+    PowerShell depending on what's installed, and exec form sidesteps that.
+    """
     hook_path = app_dir / "hooks" / hook_file
-    return f"{shlex.quote(python)} {shlex.quote(str(hook_path))}"
+    if brain_platform.IS_WINDOWS:
+        return {"type": "command", "command": python, "args": [str(hook_path)]}
+    command = f"{shlex.quote(python)} {shlex.quote(str(hook_path))}"
+    return {"type": "command", "command": command}
+
+
+def hook_entry_belongs(entry_hook: dict, hooks_dir: Path) -> bool:
+    """True if `entry_hook` (one {"type": "command", ...} dict from
+    settings.json) points at a script under `hooks_dir` — recognises both
+    macOS shell-form (path embedded in `command`) and Windows exec-form
+    (path in an `args` element). Comparison uses os.path.normcase on both
+    sides so drive-letter/case differences on Windows still match.
+    """
+    marker = os.path.normcase(str(hooks_dir) + os.sep)
+    command = os.path.normcase(str(entry_hook.get("command", "")))
+    if marker in command:
+        return True
+    for arg in entry_hook.get("args", []) or []:
+        if marker in os.path.normcase(str(arg)):
+            return True
+    return False
 
 
 def install(config, settings_path: Path) -> None:
     settings = _load_settings(settings_path)
     hooks = settings.setdefault("hooks", {})
+    hooks_dir = config.APP_DIR / "hooks"
 
     changed = False
     backup_made = None
@@ -75,7 +105,7 @@ def install(config, settings_path: Path) -> None:
         entries = hooks.setdefault(event, [])
 
         already_present = any(
-            command == h.get("command")
+            hook_entry_belongs(h, hooks_dir)
             for entry in entries
             for h in entry.get("hooks", [])
         )
@@ -86,9 +116,10 @@ def install(config, settings_path: Path) -> None:
         if backup_made is None:
             backup_made = _backup(settings_path)
 
-        entries.append({"hooks": [{"type": "command", "command": command}]})
+        entries.append({"hooks": [command]})
         changed = True
-        print(f"install_hooks: added {event} -> {command}")
+        shown = " ".join([command["command"], *command.get("args", [])])
+        print(f"install_hooks: added {event} -> {shown}")
 
     if not changed:
         print("install_hooks: nothing to do, all hooks already installed")
@@ -108,7 +139,7 @@ def uninstall(config, settings_path: Path) -> None:
         print("install_hooks: no hooks section — nothing to uninstall")
         return
 
-    hooks_dir_marker = str(config.APP_DIR / "hooks") + os.sep
+    hooks_dir = config.APP_DIR / "hooks"
 
     changed = False
     backup_made = None
@@ -122,7 +153,7 @@ def uninstall(config, settings_path: Path) -> None:
             entry_hooks = entry.get("hooks", [])
             kept_hooks = [
                 h for h in entry_hooks
-                if hooks_dir_marker not in h.get("command", "")
+                if not hook_entry_belongs(h, hooks_dir)
             ]
             if len(kept_hooks) != len(entry_hooks):
                 changed = True
